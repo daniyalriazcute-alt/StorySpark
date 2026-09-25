@@ -33,9 +33,9 @@ if st.session_state.dark_mode:
     INPUT_BG = "#1a1f3d"
     INPUT_BORDER = "#1e3a8a"
     BTN_TEXT = "#ffffff"
-    CODE_BG = "#1e3a8a"      # royal blue bg for code tags
-    CODE_TEXT = "#ffffff"    # white text on code tags
-    CHAT_USER_BG = "#111633" # chat user bubble bg
+    CODE_BG = "#1e3a8a"
+    CODE_TEXT = "#ffffff"
+    CHAT_USER_BG = "#111633"
 else:
     BG = "#ffffff"
     CARD_BG = "#f8fafc"
@@ -71,7 +71,7 @@ st.markdown(f"""
     color: {TEXT} !important;
 }}
 
-/* ===== CODE TAGS (inline `text`) ===== */
+/* ===== CODE TAGS ===== */
 .stApp code,
 .stApp .stMarkdown code,
 .stApp [data-testid="stMarkdownContainer"] code {{
@@ -153,7 +153,7 @@ st.markdown(f"""
     color: {TEXT} !important;
 }}
 
-/* ===== CHAT MESSAGES — FULL OVERRIDE ===== */
+/* ===== CHAT MESSAGES ===== */
 .stApp [data-testid="stChatMessage"] {{
     background-color: {CHAT_USER_BG} !important;
     border: 1px solid {CARD_BORDER} !important;
@@ -162,21 +162,18 @@ st.markdown(f"""
 .stApp [data-testid="stChatMessage"] * {{
     color: {TEXT} !important;
 }}
-/* Force chat message markdown text */
 .stApp [data-testid="stChatMessage"] .stMarkdown,
 .stApp [data-testid="stChatMessage"] .stMarkdown p,
 .stApp [data-testid="stChatMessage"] .stMarkdown strong,
 .stApp [data-testid="stChatMessage"] .stMarkdown em {{
     color: {TEXT} !important;
 }}
-/* Force chat message code tags */
 .stApp [data-testid="stChatMessage"] code {{
     background-color: {CODE_BG} !important;
     color: {CODE_TEXT} !important;
     padding: 2px 6px !important;
     border-radius: 4px !important;
 }}
-/* Chat avatar background */
 .stApp [data-testid="stChatMessage"] [data-testid="chatAvatarIcon-user"] {{
     background-color: {ACCENT} !important;
 }}
@@ -337,9 +334,10 @@ if run:
          f"▸ Action: wiki_tool('{theme}')",
          "✓ Idea generated"], idea), unsafe_allow_html=True)
 
+    # ---------- Agent Handoff (formerly "A2A Handoff") ----------
     mem_bar.markdown(f"""
     <div class="mem-box">
-    🔄 <b>A2A Handoff</b> — IdeaGenerator ➜ StoryWriter<br>
+    🔄 <b>Agent Handoff</b> — IdeaGenerator ➜ StoryWriter<br>
     <code>memory["idea"]</code> = "{idea[:90]}…" <b>[stored ✓]</b>
     </div>""", unsafe_allow_html=True)
 
