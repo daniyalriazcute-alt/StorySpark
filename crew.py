@@ -41,8 +41,8 @@ def get_llm(temperature: float = 0.3) -> LLM:
     """
     Return a native Google Gemini LLM instance.
 
-    Uses CrewAI's native google-genai integration — no LiteLLM layer,
-    which avoids the 'cache_breakpoint' bug seen with Groq.
+    Uses CrewAI's native google-genai integration.
+    Model updated to gemini-3.8-flash (gemini-2.5-flash is deprecated).
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -51,7 +51,7 @@ def get_llm(temperature: float = 0.3) -> LLM:
             "Add it to Streamlit Secrets or your .env file."
         )
     return LLM(
-        model="gemini/gemini-2.5-flash",   # free-tier model, fast & capable
+        model="gemini/gemini-3.8-flash",  # Updated model
         api_key=api_key,
         temperature=temperature,
     )
