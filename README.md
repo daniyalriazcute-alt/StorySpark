@@ -21,10 +21,10 @@
 
 StorySpark is a **two-agent AI system** that collaborates to write short, warm children's stories on any theme — completely free, fully deployed, and hardened against real-world LLM security risks.
 
-- 🧠 **Agent 1 (IdeaGenerator)** — finds one creative story idea.
+- 🧠 **Agent 1 (IdeaGenerator)** — finds one creative story idea using Wikipedia as a knowledge source.
 - ✍️ **Agent 2 (StoryWriter)** — turns that idea into an 80-word tale.
-- 🔄 Agent Handoff — Agent 1's output is stored in memory
-   then passed to Agent 2 as its input.
+- 🔄 **Agent Handoff** — Agent 1's output is stored in short-term memory and passed to Agent 2 as its input (sequential pipeline pattern).
+
 ---
 
 ## 🎬 Live Demo
@@ -32,6 +32,8 @@ StorySpark is a **two-agent AI system** that collaborates to write short, warm c
 🌐 **[storyspark9.streamlit.app](https://storyspark9.streamlit.app)**
 
 Features: Live agent panels · Dark/Light mode · Chat history · Download stories
+
+---
 
 ## 🏗️ Architecture
 
@@ -41,7 +43,7 @@ Features: Live agent panels · Dark/Light mode · Chat history · Download stori
 |:----:|-------|-------------|
 | 1️⃣ | 🎯 **Streamlit UI** | User enters Theme + Age → clicks Run Agents |
 | 2️⃣ | 🎬 **Orchestrator** | `run_storyspark_streaming()` coordinates the pipeline |
-| 3️⃣ | 🧠 **Agent 1 — IdeaGenerator** | Uses Wikipedia MCP tool · produces one sentence · retries once on failure |
+| 3️⃣ | 🧠 **Agent 1 — IdeaGenerator** | Uses Wikipedia tool · produces one sentence · retries once on failure |
 | 4️⃣ | 💾 **Short-Term Memory** | `memory.save("idea", ...)` bridges Agent 1 to Agent 2 |
 | 5️⃣ | ✍️ **Agent 2 — StoryWriter** | Reads idea from memory · writes 80-word story |
 | 6️⃣ | 📝 **Final Output** | Story rendered in UI + saved to chat history |
@@ -52,10 +54,65 @@ Features: Live agent panels · Dark/Light mode · Chat history · Download stori
 |-------|----------------|
 | **Streamlit UI** | Captures theme + age, displays agent panels |
 | **Orchestrator** | Coordinates retry logic and memory handoff |
-| **Agent 1** | Uses Wikipedia to generate a story idea |
+| **Agent 1** | Uses Wikipedia as a free knowledge source to generate a story idea |
 | **Short-Term Memory** | Bridges Agent 1 output to Agent 2 input |
 | **Agent 2** | Consumes idea, writes children's story |
 | **Output** | Rendered in UI + saved to chat history |
 
 ---
 
+## ✨ Feature Highlights
+
+### 🤖 Multi-Agent System
+- Two CrewAI agents with distinct roles
+- Sequential agent handoff via short-term memory
+- Shared memory bridge between agents
+
+### 🧠 Intelligent Pipeline
+- Wikipedia API for grounded ideas
+- Max 1 retry on failure
+- Three-layer fallback safety
+
+### 🎨 Beautiful UI
+- Live agent process panels
+- Dark / Light mode toggle
+- Chat history with export
+
+### 🔒 Security First
+- OWASP Top 10 for LLM 2025
+- Input validation before LLM
+- English-only enforcement
+
+---
+
+## 🔐 OWASP Top 10 for LLM Applications 2025
+
+StorySpark implements mitigations for the most critical LLM risks:
+
+| Risk | Mitigation | File |
+|------|-----------|------|
+| **LLM01** · Prompt Injection | User input treated as data; validator blocks injection patterns | `crew.py` → `is_topic_valid()` |
+| **LLM05** · Improper Output Handling | No HTML/JS/SQL in output; Streamlit renders plain text | `security_prompts.py` |
+| **LLM07** · System Prompt Leakage | Prompts never revealed; verbose mode disabled | `security_prompts.py` |
+
+**Defense Layers:**
+
+1. **Input Validator** — Blocks unsafe patterns *before* LLM call
+2. **System Prompt Directives** — English-only · No leakage · No HTML
+3. **Output Detection** — Fallback text detection + UI warnings
+
+---
+
+## 🚀 Quick Start
+
+### 📦 Installation
+
+```bash
+git clone https://github.com/yourusername/storyspark.git
+cd storyspark
+
+python3.12 -m venv venv
+source venv/bin/activate          # Linux/Mac
+# venv\Scripts\activate           # Windows
+
+pip install -r requirements.txt
