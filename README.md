@@ -33,28 +33,29 @@ StorySpark is a **two-agent AI system** that collaborates to write short, warm c
 
 Features: Live agent panels · Dark/Light mode · Chat history · Download stories
 
----
-
 ## 🏗️ Architecture
 
-**Pipeline Flow:**
-🎯 Streamlit UI (Theme + Age input)
-│
-▼
-🎬 Orchestrator — run_storyspark_streaming()
-│
-├──► 🧠 Agent 1 — IdeaGenerator
-│ • Wikipedia MCP tool
-│ • Produces one sentence
-│ • Retry once on failure
-│ │
-│ ▼
-│ 💾 Short-Term Memory
-│ │
-│ ▼
-└──► ✍️ Agent 2 — StoryWriter
-• Reads idea from memory
-• Writes 80-word story
-│
-▼
-📝 Final Story → Chat History → Streamlit Display
+### Pipeline Flow
+
+| Step | Stage | Description |
+|:----:|-------|-------------|
+| 1️⃣ | 🎯 **Streamlit UI** | User enters Theme + Age → clicks Run Agents |
+| 2️⃣ | 🎬 **Orchestrator** | `run_storyspark_streaming()` coordinates the pipeline |
+| 3️⃣ | 🧠 **Agent 1 — IdeaGenerator** | Uses Wikipedia MCP tool · produces one sentence · retries once on failure |
+| 4️⃣ | 💾 **Short-Term Memory** | `memory.save("idea", ...)` bridges Agent 1 to Agent 2 |
+| 5️⃣ | ✍️ **Agent 2 — StoryWriter** | Reads idea from memory · writes 80-word story |
+| 6️⃣ | 📝 **Final Output** | Story rendered in UI + saved to chat history |
+
+### Component Breakdown
+
+| Layer | Responsibility |
+|-------|----------------|
+| **Streamlit UI** | Captures theme + age, displays agent panels |
+| **Orchestrator** | Coordinates retry logic and memory handoff |
+| **Agent 1** | Uses Wikipedia to generate a story idea |
+| **Short-Term Memory** | Bridges Agent 1 output to Agent 2 input |
+| **Agent 2** | Consumes idea, writes children's story |
+| **Output** | Rendered in UI + saved to chat history |
+
+---
+
