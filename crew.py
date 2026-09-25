@@ -1,4 +1,4 @@
-"""Two CrewAI agents — IdeaGenerator and StoryWriter using free Groq LLM."""
+"""Two CrewAI agents — IdeaGenerator and StoryWriter using native OpenAI LLM."""
 import os
 from dotenv import load_dotenv
 
@@ -8,8 +8,8 @@ load_dotenv()
 # ---- Load Streamlit Cloud secrets if available ----
 try:
     import streamlit as st
-    if "GROQ_API_KEY" in st.secrets:
-        os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+    if "OPENAI_API_KEY" in st.secrets:
+        os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 except Exception:
     pass
 
@@ -22,18 +22,20 @@ from security_prompts import IDEA_AGENT_SYSTEM_PROMPT, WRITER_AGENT_SYSTEM_PROMP
 os.environ["CREWAI_TELEMETRY_OPT_OUT"] = "true"
 
 
-# ---------- Groq LLM Configuration ----------
+# ---------- LLM Configuration (Native OpenAI) ----------
+# Native OpenAI integration avoids the LiteLLM 'cache_breakpoint' error
+# that occurs when routing Groq through LiteLLM.
 
-def get_groq_llm(temperature: float = 0.3) -> LLM:
-    """Return a configured Groq LLM instance using the free tier."""
-    api_key = os.getenv("GROQ_API_KEY")
+def get_llm(temperature: float = 0.3) -> LLM:
+    """Return a native OpenAI LLM instance (no LiteLLM layer)."""
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError(
-            "GROQ_API_KEY is not set. "
+            "OPENAI_API_KEY is not set. "
             "Add it to Streamlit Secrets or your .env file."
         )
     return LLM(
-        model="groq/openai/gpt-oss-120b",
+        model="gpt-4o-mini",     # Native — no 'openai/' prefix needed
         api_key=api_key,
         temperature=temperature,
     )
@@ -42,6 +44,7 @@ def get_groq_llm(temperature: float = 0.3) -> LLM:
 # ---------- Agent Builders ----------
 
 def build_idea_agent(theme: str, age: int) -> Agent:
+    """Build Agent 1 with OWASP-aligned system prompt."""
     system_prompt = IDEA_AGENT_SYSTEM_PROMPT.format(theme=theme, age=age)
     return Agent(
         role="Idea Generator",
@@ -49,13 +52,14 @@ def build_idea_agent(theme: str, age: int) -> Agent:
         backstory=system_prompt,
         tools=[wiki_tool],
         verbose=False,
-        max_iter=2,
+        max_iter=2,                 # allows 1 retry max
         allow_delegation=False,
-        llm=get_groq_llm(temperature=0.5),
+        llm=get_llm(temperature=0.5),
     )
 
 
 def build_writer_agent(idea: str, age: int) -> Agent:
+    """Build Agent 2 with OWASP-aligned system prompt."""
     system_prompt = WRITER_AGENT_SYSTEM_PROMPT.format(idea=idea, age=age)
     return Agent(
         role="Story Writer",
@@ -65,7 +69,7 @@ def build_writer_agent(idea: str, age: int) -> Agent:
         verbose=False,
         max_iter=2,
         allow_delegation=False,
-        llm=get_groq_llm(temperature=0.7),
+        llm=get_llm(temperature=0.7),
     )
 
 
@@ -156,26 +160,29 @@ def is_topic_valid(theme: str) -> tuple[bool, str]:
 # ---------- Orchestrator ----------
 
 def run_storyspark_streaming(theme: str, age: int) -> tuple:
-    """Full workflow with retry + memory."""
+    """
+    Full workflow with retry + memory.
+    Returns (idea, story, metadata).
+    """
     tokens = 0
     retries = 0
 
-    # ---- Agent 1 ----
+    # ---- Agent 1: Idea Generator ----
     idea = find_idea(theme, age)
     tokens += 62
 
     if not idea:
         retries = 1
-        idea = find_idea(theme, age)
+        idea = find_idea(theme, age)    # retry ONCE
         tokens += 62
 
     if not idea:
         idea = f"A {age}-year-old discovers something magical about {theme}."
 
-    # ---- Short-term memory ----
+    # ---- Short-term memory (A2A handoff) ----
     memory.save("idea", idea)
 
-    # ---- Agent 2 ----
+    # ---- Agent 2: Story Writer ----
     story = write_story(memory.get("idea"), age)
     tokens += 88
 
