@@ -52,7 +52,7 @@ def get_llm(temperature: float = 0.3) -> LLM:
             "Add it to Streamlit Secrets or your .env file."
         )
     return LLM(
-        model="gemini/gemini-2.5-flash-lite",  # Higher free-tier RPM
+        model="gemini/gemini-3.5-flash-lite",  # Higher free-tier RPM
         api_key=api_key,
         temperature=temperature,
     )
