@@ -2,11 +2,13 @@
 Two CrewAI agents — IdeaGenerator and StoryWriter.
 
 LLM:      Google Gemini (free tier, native CrewAI integration)
+Model:    gemini-2.5-flash-lite (higher free-tier limits)
 Memory:   Short-term (in-memory handoff via memory.py)
-Retry:    Max 1 retry on XYZ miss
+Retry:    Max 1 retry on XYZ miss, with rate-limit backoff
 Security: OWASP Top 10 for LLM Applications 2025
 """
 import os
+import time
 from dotenv import load_dotenv
 
 # ---- Load .env for local dev ----
@@ -41,8 +43,7 @@ def get_llm(temperature: float = 0.3) -> LLM:
     """
     Return a native Google Gemini LLM instance.
 
-    Uses CrewAI's native google-genai integration.
-    Model updated to gemini-3.8-flash (gemini-2.5-flash is deprecated).
+    Uses gemini-2.5-flash-lite for higher free-tier rate limits.
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -51,7 +52,7 @@ def get_llm(temperature: float = 0.3) -> LLM:
             "Add it to Streamlit Secrets or your .env file."
         )
     return LLM(
-        model="gemini/gemini-3.8-flash",  # Updated model
+        model="gemini/gemini-2.5-flash-lite",  # Higher free-tier RPM
         api_key=api_key,
         temperature=temperature,
     )
@@ -220,6 +221,8 @@ def run_storyspark_streaming(theme: str, age: int) -> tuple:
     tokens += 62
 
     if not idea:
+        # Wait for free-tier quota window to reset before retrying
+        time.sleep(25)
         retries = 1
         idea = find_idea(theme, age)     # retry ONCE
         tokens += 62
