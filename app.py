@@ -1,7 +1,8 @@
 """StorySpark — Streamlit UI with live agent process visualization."""
+import os
 import time
 import streamlit as st
-from crew import run_storyspark_streaming
+from crew import run_storyspark_streaming, is_topic_valid
 
 # ---------- Page Config ----------
 st.set_page_config(page_title="StorySpark", page_icon="📖", layout="wide")
@@ -52,13 +53,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ---------- Sidebar Debug ----------
+with st.sidebar:
+    st.markdown("### ⚙️ Debug")
+    key_loaded = bool(os.getenv("GROQ_API_KEY"))
+    if key_loaded:
+        st.success("✅ GROQ_API_KEY loaded")
+    else:
+        st.error("❌ GROQ_API_KEY missing")
+        st.caption("Add it in Settings → Secrets on Streamlit Cloud.")
+    st.caption(f"Python: {os.sys.version.split()[0]}")
+
 # ---------- Header ----------
 st.markdown("## 📖 StorySpark  ·  Multi-Agent Story Engine")
 st.caption("Two CrewAI agents collaborate to write a children's story.")
 
 # ---------- Input ----------
 c1, c2, c3 = st.columns([2, 1, 1])
-theme = c1.text_input("Theme", "a lost puppy")
+theme = c1.text_input("Theme", "friendship")
 age = c2.slider("Age", 4, 12, 7)
 run = c3.button("▶ Run Agents", use_container_width=True)
 
@@ -95,60 +107,46 @@ def agent_panel(name, role, status, logs, output):
 
 # ---------- Execution ----------
 if run:
-    tokens = 0
-    retries = 0
-    t0 = time.time()
+    # ---- Validate topic first ----
+    valid, msg = is_topic_valid(theme)
+    if not valid:
+        st.error(f"❌ {msg}")
+        st.stop()
 
+    t0 = time.time()
     task_bar.info(f"🎯 **Task** — Theme: `{theme}` · Age: `{age}`")
 
-    # Phase 1 — Agent 1 start
+    # ---- Phase 1: Agent 1 running ----
     p1.markdown(agent_panel("Agent 1", "IdeaGenerator", "running",
         ["▸ Reasoning: I need a story idea.",
-         "▸ Action: wiki_tool(...)"], ""), unsafe_allow_html=True)
+         f"▸ Action: wiki_tool('{theme}')"], ""), unsafe_allow_html=True)
     p2.markdown(agent_panel("Agent 2", "StoryWriter", "waiting", [], ""),
                 unsafe_allow_html=True)
-    time.sleep(0.8)
 
-    # Phase 2 — tool call visualization
-    p1.markdown(agent_panel("Agent 1", "IdeaGenerator", "running",
-        ["▸ Reasoning: I need a story idea.",
-         f"▸ Action: wiki_tool('{theme}')",
-         "▸ Observation: retrieved 200 chars"], ""), unsafe_allow_html=True)
-    time.sleep(0.8)
-
-    # Phase 3 — backend
+    # ---- Real backend call ----
     idea, story, meta = run_storyspark_streaming(theme, age)
     tokens = meta["tokens"]
     retries = meta["retries"]
 
-    # Phase 4 — Agent 1 done
+    # ---- Phase 2: Agent 1 done ----
     p1.markdown(agent_panel("Agent 1", "IdeaGenerator", "done",
         ["▸ Reasoning: I need a story idea.",
          f"▸ Action: wiki_tool('{theme}')",
-         "▸ Observation: retrieved 200 chars",
          "✓ Idea generated"], idea), unsafe_allow_html=True)
 
-    # Phase 5 — A2A handoff
+    # ---- Phase 3: A2A handoff ----
     mem_bar.markdown(f"""
     <div class="mem-box">
     🔄 <b>A2A Handoff</b> — IdeaGenerator ➜ StoryWriter<br>
     <code>memory["idea"]</code> = "{idea[:90]}…" <b>[stored ✓]</b>
     </div>""", unsafe_allow_html=True)
-    time.sleep(0.6)
 
-    # Phase 6 — Agent 2 running
-    p2.markdown(agent_panel("Agent 2", "StoryWriter", "running",
-        ["▸ Reasoning: Write 80-word story for age.",
-         "▸ Action: generating narrative..."], ""), unsafe_allow_html=True)
-    time.sleep(0.6)
-
-    # Phase 7 — Agent 2 done
+    # ---- Phase 4: Agent 2 done ----
     p2.markdown(agent_panel("Agent 2", "StoryWriter", "done",
-        ["▸ Reasoning: Write 80-word story for age.",
-         "▸ Action: generating narrative...",
+        ["▸ Reasoning: Write 80-word story.",
          "✓ Story complete"], story), unsafe_allow_html=True)
 
-    # Phase 8 — Metrics
+    # ---- Phase 5: Metrics ----
     elapsed = round(time.time() - t0, 1)
     metric_bar.success(
         f"📊 Tokens: **{tokens}/300** · Retries: **{retries}/1** · "
