@@ -116,3 +116,14 @@ source venv/bin/activate          # Linux/Mac
 # venv\Scripts\activate           # Windows
 
 pip install -r requirements.txt
+
+🙏 Acknowledgments
+CrewAI — Multi-agent orchestration framework
+
+Google Gemini — Free LLM API
+
+Streamlit — Rapid UI framework
+
+OWASP — LLM security guidance
+
+Wikipedia — Free knowledge source
