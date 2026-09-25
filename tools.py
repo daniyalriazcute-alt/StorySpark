@@ -1,0 +1,10 @@
+"""Free external tools for agents."""
+from crewai_tools import tool
+from mcp_client import search_wikipedia
+
+
+@tool("Wikipedia Search")
+def wiki_tool(topic: str) -> str:
+    """Find facts about a topic using free Wikipedia API."""
+    result = search_wikipedia(topic)
+    return result if result else "No information found."
