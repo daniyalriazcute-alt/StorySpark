@@ -1,5 +1,5 @@
 """Free external tools for agents."""
-from crewai_tools import tool
+from crewai.tools import tool
 from mcp_client import search_wikipedia
 
 
