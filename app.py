@@ -22,17 +22,20 @@ if "story_count" not in st.session_state:
 
 # ---------- Theme Colors ----------
 if st.session_state.dark_mode:
-    BG = "#0a0e27"           # deep navy background
-    CARD_BG = "#111633"      # dark navy card
-    CARD_BORDER = "#1e3a8a"  # royal blue border
-    TEXT = "#e5e7eb"         # light gray text
-    SUBTEXT = "#93c5fd"      # light blue subtext
-    ACCENT = "#1e3a8a"       # royal blue accent
+    BG = "#0a0e27"
+    CARD_BG = "#111633"
+    CARD_BORDER = "#1e3a8a"
+    TEXT = "#e5e7eb"
+    SUBTEXT = "#93c5fd"
+    ACCENT = "#1e3a8a"
     ACCENT_HOVER = "#2563eb"
     MEM_BG = "#0f172a"
     INPUT_BG = "#1a1f3d"
     INPUT_BORDER = "#1e3a8a"
-    BTN_TEXT = "#ffffff"     # white text on blue buttons
+    BTN_TEXT = "#ffffff"
+    CODE_BG = "#1e3a8a"      # royal blue bg for code tags
+    CODE_TEXT = "#ffffff"    # white text on code tags
+    CHAT_USER_BG = "#111633" # chat user bubble bg
 else:
     BG = "#ffffff"
     CARD_BG = "#f8fafc"
@@ -45,6 +48,9 @@ else:
     INPUT_BG = "#ffffff"
     INPUT_BORDER = "#cbd5e1"
     BTN_TEXT = "#ffffff"
+    CODE_BG = "#e0e7ff"
+    CODE_TEXT = "#1e3a8a"
+    CHAT_USER_BG = "#f1f5f9"
 
 # ---------- Full-Page Theme CSS ----------
 st.markdown(f"""
@@ -65,12 +71,24 @@ st.markdown(f"""
     color: {TEXT} !important;
 }}
 
+/* ===== CODE TAGS (inline `text`) ===== */
+.stApp code,
+.stApp .stMarkdown code,
+.stApp [data-testid="stMarkdownContainer"] code {{
+    background-color: {CODE_BG} !important;
+    color: {CODE_TEXT} !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    font-family: 'SF Mono', Monaco, monospace !important;
+    font-size: 0.9em !important;
+}}
+
 /* ===== CAPTION ===== */
 .stApp .stCaption, .stApp [data-testid="stCaptionContainer"] {{
     color: {SUBTEXT} !important;
 }}
 
-/* ===== SLIDER (label + value + track) ===== */
+/* ===== SLIDER ===== */
 .stApp .stSlider label,
 .stApp .stSlider [data-testid="stTickBarMin"],
 .stApp .stSlider [data-testid="stTickBarMax"],
@@ -80,12 +98,10 @@ st.markdown(f"""
 .stApp .stSlider [data-baseweb="slider"] > div > div > div {{
     background: {ACCENT} !important;
 }}
-/* Slider thumb */
 .stApp .stSlider [role="slider"] {{
     background-color: {ACCENT} !important;
     border-color: {ACCENT} !important;
 }}
-/* Slider value bubble above thumb */
 .stApp .stSlider [data-testid="stThumbValue"] {{
     color: {TEXT} !important;
     background-color: transparent !important;
@@ -103,7 +119,7 @@ st.markdown(f"""
     color: {TEXT} !important;
 }}
 
-/* ===== BUTTONS — ALL of them ===== */
+/* ===== BUTTONS ===== */
 .stApp .stButton > button,
 .stApp .stDownloadButton > button {{
     background-color: {ACCENT} !important;
@@ -127,7 +143,7 @@ st.markdown(f"""
     border-color: {ACCENT_HOVER} !important;
 }}
 
-/* ===== ALERT BOXES (info, success, error, warning) ===== */
+/* ===== ALERT BOXES ===== */
 .stApp .stAlert {{
     background-color: {CARD_BG} !important;
     color: {TEXT} !important;
@@ -137,14 +153,32 @@ st.markdown(f"""
     color: {TEXT} !important;
 }}
 
-/* ===== CHAT MESSAGES ===== */
+/* ===== CHAT MESSAGES — FULL OVERRIDE ===== */
 .stApp [data-testid="stChatMessage"] {{
-    background-color: {CARD_BG} !important;
+    background-color: {CHAT_USER_BG} !important;
     border: 1px solid {CARD_BORDER} !important;
     border-radius: 8px !important;
 }}
 .stApp [data-testid="stChatMessage"] * {{
     color: {TEXT} !important;
+}}
+/* Force chat message markdown text */
+.stApp [data-testid="stChatMessage"] .stMarkdown,
+.stApp [data-testid="stChatMessage"] .stMarkdown p,
+.stApp [data-testid="stChatMessage"] .stMarkdown strong,
+.stApp [data-testid="stChatMessage"] .stMarkdown em {{
+    color: {TEXT} !important;
+}}
+/* Force chat message code tags */
+.stApp [data-testid="stChatMessage"] code {{
+    background-color: {CODE_BG} !important;
+    color: {CODE_TEXT} !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+}}
+/* Chat avatar background */
+.stApp [data-testid="stChatMessage"] [data-testid="chatAvatarIcon-user"] {{
+    background-color: {ACCENT} !important;
 }}
 
 /* ===== DIVIDER ===== */
@@ -211,7 +245,6 @@ with header_left:
     st.markdown("## 📖 StorySpark · Multi-Agent Story Engine")
     st.caption("Two CrewAI agents collaborate to write a children's story.")
 with header_right:
-    # Show CURRENT mode, not target
     if st.session_state.dark_mode:
         toggle_label = "🌙 Dark Mode"
     else:
@@ -356,7 +389,10 @@ if st.session_state.chat_history:
 
     for item in reversed(st.session_state.chat_history):
         with st.chat_message("user"):
-            st.markdown(f"**Story #{item['n']}** — Theme: `{item['theme']}` · Age: `{item['age']}`")
+            st.markdown(
+                f"**Story #{item['n']}** — Theme: `{item['theme']}` · "
+                f"Age: `{item['age']}`"
+            )
         with st.chat_message("assistant", avatar="📖"):
             st.markdown(f"**💡 Idea:** {item['idea']}")
             st.markdown(f"**📖 Story:** {item['story']}")
