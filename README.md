@@ -107,8 +107,6 @@ StorySpark implements mitigations for the most critical LLM risks:
 
 ### 📦 Installation
 
-### 📦 Installation
-
 ```bash
 git clone https://github.com/daniyaliRiazcute-alt/StorySpark.git
 cd StorySpark
