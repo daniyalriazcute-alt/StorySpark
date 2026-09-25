@@ -14,6 +14,6 @@ def search_wikipedia(topic: str, max_chars: int = 200) -> str | None:
         page = wiki.page(topic)
         if page.exists():
             return page.summary[:max_chars]
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[Wikipedia ERROR] {type(e).__name__}: {e}")
     return None
