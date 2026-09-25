@@ -15,63 +15,72 @@ st.set_page_config(
 # ---------- Theme Toggle (top right) ----------
 theme_col1, theme_col2 = st.columns([5, 1])
 with theme_col2:
-    dark_mode = st.toggle("🌙 Dark", value=False)
+    dark_mode = st.toggle("🌙 Dark Mode", value=False)
 
-# Apply theme via CSS injection
+# ---------- Scoped CSS (only affects custom cards) ----------
+# We only style our own HTML classes (.agent-card, .log, .mem-box).
+# We do NOT override Streamlit's native text colors — Streamlit handles that
+# automatically via its built-in theme system.
+
 if dark_mode:
-    st.markdown("""
-    <style>
-    /* Force light text on all major Streamlit elements in dark mode */
-    .stApp, .stApp p, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
-    .stApp label, .stApp span, .stApp div, .stApp small, .stApp strong, .stApp em,
-    .stApp .stMarkdown, .stApp .stText, .stApp .stCaption {
-        color: #fafafa !important;
-    }
-    /* Input fields */
-    .stApp input, .stApp textarea {
-        background-color: #1a1d24 !important;
-        color: #fafafa !important;
-        border-color: #2a2f3a !important;
-    }
-    /* Slider track */
-    .stApp .stSlider > div > div > div {
-        background-color: #3b82f6 !important;
-    }
-    /* Custom agent cards */
-    .agent-card { background: #1a1d24 !important; border: 1px solid #2a2f3a !important;
-                  border-radius: 10px; padding: 14px; min-height: 300px; }
-    .agent-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; color: #fafafa; }
-    .status-dot { display:inline-block; width:9px; height:9px;
-                  border-radius:50%; margin-right:6px; }
-    .running { background:#22c55e; animation:pulse 1s infinite; }
-    .waiting { background:#9ca3af; }
-    .done    { background:#3b82f6; }
-    @keyframes pulse {0%{opacity:1}50%{opacity:.4}100%{opacity:1}}
-    .log { font-family:'SF Mono',Monaco,monospace; font-size:12.5px;
-           line-height:1.6; color:#d1d5db; }
-    .mem-box { background:#1e2130; border-left:4px solid #6366f1;
-               padding:10px 14px; border-radius:6px; font-size:13px; color:#d1d5db; }
-    </style>
-    """, unsafe_allow_html=True)
+    card_bg = "#1a1d24"
+    card_border = "#2a2f3a"
+    log_color = "#d1d5db"
+    mem_bg = "#1e2130"
+    title_color = "#fafafa"
+    subtext = "#9ca3af"
 else:
-    st.markdown("""
-    <style>
-    /* Custom agent cards for light mode */
-    .agent-card { background: #fafafa; border: 1px solid #e0e0e0;
-                  border-radius: 10px; padding: 14px; min-height: 300px; }
-    .agent-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
-    .status-dot { display:inline-block; width:9px; height:9px;
-                  border-radius:50%; margin-right:6px; }
-    .running { background:#22c55e; animation:pulse 1s infinite; }
-    .waiting { background:#9ca3af; }
-    .done    { background:#3b82f6; }
-    @keyframes pulse {0%{opacity:1}50%{opacity:.4}100%{opacity:1}}
-    .log { font-family:'SF Mono',Monaco,monospace; font-size:12.5px;
-           line-height:1.6; color:#374151; }
-    .mem-box { background:#eef2ff; border-left:4px solid #6366f1;
-               padding:10px 14px; border-radius:6px; font-size:13px; }
-    </style>
-    """, unsafe_allow_html=True)
+    card_bg = "#fafafa"
+    card_border = "#e0e0e0"
+    log_color = "#374151"
+    mem_bg = "#eef2ff"
+    title_color = "#111827"
+    subtext = "#6b7280"
+
+st.markdown(f"""
+<style>
+.agent-card {{
+    background: {card_bg};
+    border: 1px solid {card_border};
+    border-radius: 10px;
+    padding: 14px;
+    min-height: 300px;
+}}
+.agent-title {{
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 6px;
+    color: {title_color};
+}}
+.status-dot {{
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-right: 6px;
+}}
+.running {{ background: #22c55e; animation: pulse 1s infinite; }}
+.waiting {{ background: #9ca3af; }}
+.done    {{ background: #3b82f6; }}
+@keyframes pulse {{0%{{opacity:1}}50%{{opacity:.4}}100%{{opacity:1}}}}
+.log {{
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: {log_color};
+}}
+.mem-box {{
+    background: {mem_bg};
+    border-left: 4px solid #6366f1;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: {log_color};
+}}
+.agent-role {{ color: {subtext}; }}
+.agent-output-label {{ font-size:12px; color:{subtext}; }}
+</style>
+""", unsafe_allow_html=True)
 
 # ---------- Session State Init ----------
 if "chat_history" not in st.session_state:
@@ -83,7 +92,7 @@ if "story_count" not in st.session_state:
 st.markdown("## 📖 StorySpark · Multi-Agent Story Engine")
 st.caption("Two CrewAI agents collaborate to write a children's story.")
 
-# ---------- Top Controls (only Clear Chat now) ----------
+# ---------- Top Controls ----------
 ctrl1, ctrl2 = st.columns([5, 1])
 with ctrl2:
     if st.button("🗑️ Clear Chat", use_container_width=True):
@@ -116,13 +125,13 @@ def agent_panel(name, role, status, logs, output):
     out_html = output if output else "—"
     return f"""
     <div class="agent-card">
-      <div class="agent-title">🤖 {name} · <span style="color:#6b7280">{role}</span></div>
+      <div class="agent-title">🤖 {name} · <span class="agent-role">{role}</span></div>
       <div style="font-size:12px;margin-bottom:8px">
         <span class="status-dot {dot}"></span>{label}
       </div>
       <div class="log">{log_html}</div>
       <hr style="margin:10px 0">
-      <div style="font-size:12px;color:#6b7280">Output</div>
+      <div class="agent-output-label">Output</div>
       <div style="font-size:13px">{out_html}</div>
     </div>
     """
@@ -199,7 +208,6 @@ if run:
         mime="text/plain",
     )
 
-    # ---- Save to chat history ----
     st.session_state.story_count += 1
     st.session_state.chat_history.append({
         "n": st.session_state.story_count,
@@ -218,7 +226,6 @@ if st.session_state.chat_history:
     st.divider()
     st.subheader(f"💬 Chat History ({len(st.session_state.chat_history)} stories)")
 
-    # Show newest first
     for item in reversed(st.session_state.chat_history):
         with st.chat_message("user"):
             st.markdown(f"**Story #{item['n']}** — Theme: `{item['theme']}` · Age: `{item['age']}`")
@@ -231,10 +238,8 @@ if st.session_state.chat_history:
                 f"Time: {item['time']}s"
             )
 
-    # Bottom action bar
     act1, act2 = st.columns([3, 1])
     with act2:
-        # Export full chat
         chat_text = "\n\n".join([
             f"Story #{i['n']}\nTheme: {i['theme']} (age {i['age']})\n"
             f"Idea: {i['idea']}\nStory: {i['story']}\n"
