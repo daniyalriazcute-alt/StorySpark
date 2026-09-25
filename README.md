@@ -107,23 +107,68 @@ StorySpark implements mitigations for the most critical LLM risks:
 
 ### 📦 Installation
 
+### 📦 Installation
+
 ```bash
-git clone https://github.com/yourusername/storyspark.git
-cd storyspark
+git clone https://github.com/daniyaliRiazcute-alt/StorySpark.git
+cd StorySpark
 
 python3.12 -m venv venv
 source venv/bin/activate          # Linux/Mac
 # venv\Scripts\activate           # Windows
 
 pip install -r requirements.txt
+```
 
-🙏 Acknowledgments
-CrewAI — Multi-agent orchestration framework
+### 🔑 Get a Free Gemini API Key
 
-Google Gemini — Free LLM API
+1. Visit [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+2. Sign in with any Google account
+3. Click **Create API key**
+4. Copy the key (starts with `AIza...`)
 
-Streamlit — Rapid UI framework
+### 🔧 Configure
 
-OWASP — LLM security guidance
+**Streamlit Cloud:** Add to **Settings → Secrets**:
 
-Wikipedia — Free knowledge source
+```toml
+GEMINI_API_KEY = "AIzaSy..."
+```
+
+**Local:** Set an environment variable:
+
+```bash
+export GEMINI_API_KEY="AIzaSy..."
+```
+
+### ▶️ Run
+
+```bash
+streamlit run app.py
+```
+
+Open [http://localhost:8501](http://localhost:8501) in your browser.
+
+---
+
+## 📁 Project Structure
+
+```
+storyspark/
+├── app.py                  # Streamlit UI + chat history + themes
+├── crew.py                 # Two CrewAI agents + orchestrator
+├── security_prompts.py     # OWASP 2025 system prompts
+├── memory.py               # Short-term memory store
+├── retry.py                # Max 1 retry logic
+├── tools.py                # Wikipedia @tool (crewai.tools)
+├── wikipedia_client.py     # Wikipedia API client
+├── requirements.txt
+├── runtime.txt             # python-3.12
+├── README.md
+└── .gitignore
+```
+
+---
+
+## 🧪 Tested Themes
+...
