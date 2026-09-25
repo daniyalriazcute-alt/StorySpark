@@ -1,4 +1,11 @@
-"""Two CrewAI agents — IdeaGenerator and StoryWriter using native OpenAI LLM."""
+"""
+Two CrewAI agents — IdeaGenerator and StoryWriter.
+
+LLM:      Google Gemini (free tier, native CrewAI integration)
+Memory:   Short-term (in-memory handoff via memory.py)
+Retry:    Max 1 retry on XYZ miss
+Security: OWASP Top 10 for LLM Applications 2025
+"""
 import os
 from dotenv import load_dotenv
 
@@ -8,9 +15,10 @@ load_dotenv()
 # ---- Load Streamlit Cloud secrets if available ----
 try:
     import streamlit as st
-    if "OPENAI_API_KEY" in st.secrets:
-        os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+    if "GEMINI_API_KEY" in st.secrets:
+        os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
 except Exception:
+    # Streamlit not installed (local script) or no secrets set — ignore
     pass
 
 from crewai import Agent, Task, Crew, LLM
@@ -21,30 +29,40 @@ from security_prompts import IDEA_AGENT_SYSTEM_PROMPT, WRITER_AGENT_SYSTEM_PROMP
 # Prevent verbose token bloat
 os.environ["CREWAI_TELEMETRY_OPT_OUT"] = "true"
 
+# Track last error for UI diagnostics
+_LAST_ERROR = {"idea": "", "story": ""}
 
-# ---------- LLM Configuration (Native OpenAI) ----------
-# Native OpenAI integration avoids the LiteLLM 'cache_breakpoint' error
-# that occurs when routing Groq through LiteLLM.
+
+# ============================================================
+# LLM Configuration — Google Gemini (Free Tier, Native)
+# ============================================================
 
 def get_llm(temperature: float = 0.3) -> LLM:
-    """Return a native OpenAI LLM instance (no LiteLLM layer)."""
-    api_key = os.getenv("OPENAI_API_KEY")
+    """
+    Return a native Google Gemini LLM instance.
+
+    Uses CrewAI's native google-genai integration — no LiteLLM layer,
+    which avoids the 'cache_breakpoint' bug seen with Groq.
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError(
-            "OPENAI_API_KEY is not set. "
+            "GEMINI_API_KEY is not set. "
             "Add it to Streamlit Secrets or your .env file."
         )
     return LLM(
-        model="gpt-4o-mini",     # Native — no 'openai/' prefix needed
+        model="gemini/gemini-2.5-flash",   # free-tier model, fast & capable
         api_key=api_key,
         temperature=temperature,
     )
 
 
-# ---------- Agent Builders ----------
+# ============================================================
+# Agent Builders
+# ============================================================
 
 def build_idea_agent(theme: str, age: int) -> Agent:
-    """Build Agent 1 with OWASP-aligned system prompt."""
+    """Agent 1 — IdeaGenerator with OWASP-aligned system prompt."""
     system_prompt = IDEA_AGENT_SYSTEM_PROMPT.format(theme=theme, age=age)
     return Agent(
         role="Idea Generator",
@@ -52,14 +70,14 @@ def build_idea_agent(theme: str, age: int) -> Agent:
         backstory=system_prompt,
         tools=[wiki_tool],
         verbose=False,
-        max_iter=2,                 # allows 1 retry max
+        max_iter=2,                # allows 1 retry max
         allow_delegation=False,
         llm=get_llm(temperature=0.5),
     )
 
 
 def build_writer_agent(idea: str, age: int) -> Agent:
-    """Build Agent 2 with OWASP-aligned system prompt."""
+    """Agent 2 — StoryWriter with OWASP-aligned system prompt."""
     system_prompt = WRITER_AGENT_SYSTEM_PROMPT.format(idea=idea, age=age)
     return Agent(
         role="Story Writer",
@@ -73,14 +91,23 @@ def build_writer_agent(idea: str, age: int) -> Agent:
     )
 
 
-# ---------- Task Functions ----------
+# ============================================================
+# Task Functions
+# ============================================================
 
 def find_idea(theme: str, age: int) -> str | None:
-    """Agent 1: find a story idea (XYZ). Returns None on failure."""
+    """
+    Agent 1 — find a story idea (XYZ).
+    Returns the idea string, or None on failure.
+    """
+    _LAST_ERROR["idea"] = ""
+
     try:
         agent = build_idea_agent(theme, age)
     except Exception as e:
-        print(f"[IdeaAgent BUILD ERROR] {type(e).__name__}: {e}")
+        err = f"[IdeaAgent BUILD ERROR] {type(e).__name__}: {e}"
+        print(err)
+        _LAST_ERROR["idea"] = err
         return None
 
     task = Task(
@@ -92,23 +119,34 @@ def find_idea(theme: str, age: int) -> str | None:
         expected_output="One sentence story idea in English.",
         agent=agent,
     )
+
     try:
         result = Crew(agents=[agent], tasks=[task], verbose=False).kickoff()
         if not result:
-            raise ValueError("Empty result")
+            raise ValueError("Empty result from Crew")
         return str(result).strip()
     except Exception as e:
-        print(f"[IdeaAgent ERROR] {type(e).__name__}: {e}")
+        err = f"[IdeaAgent ERROR] {type(e).__name__}: {e}"
+        print(err)
+        _LAST_ERROR["idea"] = err
         return None
 
 
 def write_story(idea: str, age: int) -> str:
-    """Agent 2: write story from idea. Returns fallback if fails."""
+    """
+    Agent 2 — write story from the idea.
+    Returns the story string, or a fallback on failure.
+    """
+    _LAST_ERROR["story"] = ""
+    fallback = "Once upon a time, there was a small adventure waiting to happen."
+
     try:
         agent = build_writer_agent(idea, age)
     except Exception as e:
-        print(f"[WriterAgent BUILD ERROR] {type(e).__name__}: {e}")
-        return "Once upon a time, there was a small adventure waiting to happen."
+        err = f"[WriterAgent BUILD ERROR] {type(e).__name__}: {e}"
+        print(err)
+        _LAST_ERROR["story"] = err
+        return fallback
 
     task = Task(
         description=(
@@ -118,20 +156,25 @@ def write_story(idea: str, age: int) -> str:
         expected_output="Short children's story in English, max 80 words.",
         agent=agent,
     )
+
     try:
         result = Crew(agents=[agent], tasks=[task], verbose=False).kickoff()
         if not result:
-            raise ValueError("Empty result")
+            raise ValueError("Empty result from Crew")
         return str(result).strip()
     except Exception as e:
-        print(f"[WriterAgent ERROR] {type(e).__name__}: {e}")
-        return "Once upon a time, there was a small adventure waiting to happen."
+        err = f"[WriterAgent ERROR] {type(e).__name__}: {e}"
+        print(err)
+        _LAST_ERROR["story"] = err
+        return fallback
 
 
-# ---------- Topic Validator ----------
+# ============================================================
+# Topic Validator — pre-filter before agents run
+# ============================================================
 
 def is_topic_valid(theme: str) -> tuple[bool, str]:
-    """Pre-filter topics before sending to agents."""
+    """Validate the user's theme before calling any LLM."""
     theme_lower = theme.lower().strip()
 
     if not theme_lower:
@@ -157,12 +200,17 @@ def is_topic_valid(theme: str) -> tuple[bool, str]:
     return True, "OK"
 
 
-# ---------- Orchestrator ----------
+# ============================================================
+# Orchestrator — full workflow with retry + memory
+# ============================================================
 
 def run_storyspark_streaming(theme: str, age: int) -> tuple:
     """
-    Full workflow with retry + memory.
-    Returns (idea, story, metadata).
+    Full StorySpark workflow.
+
+    Returns:
+        (idea, story, metadata)
+        metadata = {"tokens": int, "retries": int}
     """
     tokens = 0
     retries = 0
@@ -173,10 +221,11 @@ def run_storyspark_streaming(theme: str, age: int) -> tuple:
 
     if not idea:
         retries = 1
-        idea = find_idea(theme, age)    # retry ONCE
+        idea = find_idea(theme, age)     # retry ONCE
         tokens += 62
 
     if not idea:
+        # Layer 3 fallback — guarantees Agent 2 always has input
         idea = f"A {age}-year-old discovers something magical about {theme}."
 
     # ---- Short-term memory (A2A handoff) ----
@@ -187,3 +236,12 @@ def run_storyspark_streaming(theme: str, age: int) -> tuple:
     tokens += 88
 
     return idea, story, {"tokens": tokens, "retries": retries}
+
+
+# ============================================================
+# Debug helper — expose last errors for the UI
+# ============================================================
+
+def get_last_errors() -> dict:
+    """Return the last captured errors for UI display."""
+    return dict(_LAST_ERROR)
