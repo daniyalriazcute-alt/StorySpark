@@ -21,7 +21,23 @@ with theme_col2:
 if dark_mode:
     st.markdown("""
     <style>
-    .stApp { background-color: #0e1117; color: #fafafa; }
+    /* Force light text on all major Streamlit elements in dark mode */
+    .stApp, .stApp p, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+    .stApp label, .stApp span, .stApp div, .stApp small, .stApp strong, .stApp em,
+    .stApp .stMarkdown, .stApp .stText, .stApp .stCaption {
+        color: #fafafa !important;
+    }
+    /* Input fields */
+    .stApp input, .stApp textarea {
+        background-color: #1a1d24 !important;
+        color: #fafafa !important;
+        border-color: #2a2f3a !important;
+    }
+    /* Slider track */
+    .stApp .stSlider > div > div > div {
+        background-color: #3b82f6 !important;
+    }
+    /* Custom agent cards */
     .agent-card { background: #1a1d24 !important; border: 1px solid #2a2f3a !important;
                   border-radius: 10px; padding: 14px; min-height: 300px; }
     .agent-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; color: #fafafa; }
@@ -40,6 +56,7 @@ if dark_mode:
 else:
     st.markdown("""
     <style>
+    /* Custom agent cards for light mode */
     .agent-card { background: #fafafa; border: 1px solid #e0e0e0;
                   border-radius: 10px; padding: 14px; min-height: 300px; }
     .agent-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
@@ -66,16 +83,12 @@ if "story_count" not in st.session_state:
 st.markdown("## 📖 StorySpark · Multi-Agent Story Engine")
 st.caption("Two CrewAI agents collaborate to write a children's story.")
 
-# ---------- Top Controls ----------
-ctrl1, ctrl2, ctrl3 = st.columns([3, 1, 1])
+# ---------- Top Controls (only Clear Chat now) ----------
+ctrl1, ctrl2 = st.columns([5, 1])
 with ctrl2:
-    if st.button("🆕 New Session", use_container_width=True):
-        st.session_state.chat_history = []
-        st.session_state.story_count = 0
-        st.rerun()
-with ctrl3:
     if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.chat_history = []
+        st.session_state.story_count = 0
         st.rerun()
 
 # ---------- Input Row ----------
@@ -219,13 +232,8 @@ if st.session_state.chat_history:
             )
 
     # Bottom action bar
-    act1, act2, act3 = st.columns([2, 1, 1])
+    act1, act2 = st.columns([3, 1])
     with act2:
-        if st.button("🆕 Start New Chat", use_container_width=True):
-            st.session_state.chat_history = []
-            st.session_state.story_count = 0
-            st.rerun()
-    with act3:
         # Export full chat
         chat_text = "\n\n".join([
             f"Story #{i['n']}\nTheme: {i['theme']} (age {i['age']})\n"
