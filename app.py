@@ -1,74 +1,84 @@
-"""StorySpark — Streamlit UI with live agent process visualization."""
+"""StorySpark — Streamlit UI with chat history, theme toggle, and live agent view."""
 import os
 import time
 import streamlit as st
-from crew import run_storyspark_streaming, is_topic_valid
+from crew import run_storyspark_streaming, is_topic_valid, get_last_errors
 
 # ---------- Page Config ----------
-st.set_page_config(page_title="StorySpark", page_icon="📖", layout="wide")
+st.set_page_config(
+    page_title="StorySpark",
+    page_icon="📖",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
-# ---------- Custom CSS ----------
-st.markdown("""
-<style>
-.agent-card {
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    padding: 14px;
-    background: #fafafa;
-    min-height: 300px;
-}
-.agent-title {
-    font-weight: 600;
-    font-size: 15px;
-    margin-bottom: 6px;
-}
-.status-dot {
-    display: inline-block;
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    margin-right: 6px;
-}
-.running { background: #22c55e; animation: pulse 1s infinite; }
-.waiting { background: #9ca3af; }
-.done    { background: #3b82f6; }
-@keyframes pulse {
-    0%   { opacity: 1; }
-    50%  { opacity: 0.4; }
-    100% { opacity: 1; }
-}
-.log {
-    font-family: 'SF Mono', Monaco, monospace;
-    font-size: 12.5px;
-    line-height: 1.6;
-    color: #374151;
-}
-.mem-box {
-    background: #eef2ff;
-    border-left: 4px solid #6366f1;
-    padding: 10px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-}
-</style>
-""", unsafe_allow_html=True)
+# ---------- Theme Toggle (top right) ----------
+theme_col1, theme_col2 = st.columns([5, 1])
+with theme_col2:
+    dark_mode = st.toggle("🌙 Dark", value=False)
 
-# ---------- Sidebar Debug ----------
-with st.sidebar:
-    st.markdown("### ⚙️ Debug")
-    key_loaded = bool(os.getenv("GROQ_API_KEY"))
-    if key_loaded:
-        st.success("✅ GROQ_API_KEY loaded")
-    else:
-        st.error("❌ GROQ_API_KEY missing")
-        st.caption("Add it in Settings → Secrets on Streamlit Cloud.")
-    st.caption(f"Python: {os.sys.version.split()[0]}")
+# Apply theme via CSS injection
+if dark_mode:
+    st.markdown("""
+    <style>
+    .stApp { background-color: #0e1117; color: #fafafa; }
+    .agent-card { background: #1a1d24 !important; border: 1px solid #2a2f3a !important;
+                  border-radius: 10px; padding: 14px; min-height: 300px; }
+    .agent-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; color: #fafafa; }
+    .status-dot { display:inline-block; width:9px; height:9px;
+                  border-radius:50%; margin-right:6px; }
+    .running { background:#22c55e; animation:pulse 1s infinite; }
+    .waiting { background:#9ca3af; }
+    .done    { background:#3b82f6; }
+    @keyframes pulse {0%{opacity:1}50%{opacity:.4}100%{opacity:1}}
+    .log { font-family:'SF Mono',Monaco,monospace; font-size:12.5px;
+           line-height:1.6; color:#d1d5db; }
+    .mem-box { background:#1e2130; border-left:4px solid #6366f1;
+               padding:10px 14px; border-radius:6px; font-size:13px; color:#d1d5db; }
+    </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <style>
+    .agent-card { background: #fafafa; border: 1px solid #e0e0e0;
+                  border-radius: 10px; padding: 14px; min-height: 300px; }
+    .agent-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+    .status-dot { display:inline-block; width:9px; height:9px;
+                  border-radius:50%; margin-right:6px; }
+    .running { background:#22c55e; animation:pulse 1s infinite; }
+    .waiting { background:#9ca3af; }
+    .done    { background:#3b82f6; }
+    @keyframes pulse {0%{opacity:1}50%{opacity:.4}100%{opacity:1}}
+    .log { font-family:'SF Mono',Monaco,monospace; font-size:12.5px;
+           line-height:1.6; color:#374151; }
+    .mem-box { background:#eef2ff; border-left:4px solid #6366f1;
+               padding:10px 14px; border-radius:6px; font-size:13px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ---------- Session State Init ----------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "story_count" not in st.session_state:
+    st.session_state.story_count = 0
 
 # ---------- Header ----------
-st.markdown("## 📖 StorySpark  ·  Multi-Agent Story Engine")
+st.markdown("## 📖 StorySpark · Multi-Agent Story Engine")
 st.caption("Two CrewAI agents collaborate to write a children's story.")
 
-# ---------- Input ----------
+# ---------- Top Controls ----------
+ctrl1, ctrl2, ctrl3 = st.columns([3, 1, 1])
+with ctrl2:
+    if st.button("🆕 New Session", use_container_width=True):
+        st.session_state.chat_history = []
+        st.session_state.story_count = 0
+        st.rerun()
+with ctrl3:
+    if st.button("🗑️ Clear Chat", use_container_width=True):
+        st.session_state.chat_history = []
+        st.rerun()
+
+# ---------- Input Row ----------
 c1, c2, c3 = st.columns([2, 1, 1])
 theme = c1.text_input("Theme", "friendship")
 age = c2.slider("Age", 4, 12, 7)
@@ -107,46 +117,53 @@ def agent_panel(name, role, status, logs, output):
 
 # ---------- Execution ----------
 if run:
-    # ---- Validate topic first ----
     valid, msg = is_topic_valid(theme)
     if not valid:
         st.error(f"❌ {msg}")
         st.stop()
 
+    if not os.getenv("GEMINI_API_KEY"):
+        st.error("❌ GEMINI_API_KEY is not set. Add it in Settings → Secrets.")
+        st.stop()
+
     t0 = time.time()
     task_bar.info(f"🎯 **Task** — Theme: `{theme}` · Age: `{age}`")
 
-    # ---- Phase 1: Agent 1 running ----
     p1.markdown(agent_panel("Agent 1", "IdeaGenerator", "running",
         ["▸ Reasoning: I need a story idea.",
          f"▸ Action: wiki_tool('{theme}')"], ""), unsafe_allow_html=True)
     p2.markdown(agent_panel("Agent 2", "StoryWriter", "waiting", [], ""),
                 unsafe_allow_html=True)
 
-    # ---- Real backend call ----
-    idea, story, meta = run_storyspark_streaming(theme, age)
-    tokens = meta["tokens"]
-    retries = meta["retries"]
+    try:
+        idea, story, meta = run_storyspark_streaming(theme, age)
+        tokens = meta["tokens"]
+        retries = meta["retries"]
+    except Exception as e:
+        st.error(f"❌ Backend error: {type(e).__name__}: {e}")
+        st.stop()
 
-    # ---- Phase 2: Agent 1 done ----
+    errors = get_last_errors()
+    if errors.get("idea"):
+        st.error(f"❌ Agent 1: {errors['idea']}")
+    if errors.get("story"):
+        st.error(f"❌ Agent 2: {errors['story']}")
+
     p1.markdown(agent_panel("Agent 1", "IdeaGenerator", "done",
         ["▸ Reasoning: I need a story idea.",
          f"▸ Action: wiki_tool('{theme}')",
          "✓ Idea generated"], idea), unsafe_allow_html=True)
 
-    # ---- Phase 3: A2A handoff ----
     mem_bar.markdown(f"""
     <div class="mem-box">
     🔄 <b>A2A Handoff</b> — IdeaGenerator ➜ StoryWriter<br>
     <code>memory["idea"]</code> = "{idea[:90]}…" <b>[stored ✓]</b>
     </div>""", unsafe_allow_html=True)
 
-    # ---- Phase 4: Agent 2 done ----
     p2.markdown(agent_panel("Agent 2", "StoryWriter", "done",
         ["▸ Reasoning: Write 80-word story.",
          "✓ Story complete"], story), unsafe_allow_html=True)
 
-    # ---- Phase 5: Metrics ----
     elapsed = round(time.time() - t0, 1)
     metric_bar.success(
         f"📊 Tokens: **{tokens}/300** · Retries: **{retries}/1** · "
@@ -157,3 +174,69 @@ if run:
     st.subheader("📝 Final Output")
     st.markdown(f"**💡 Story Idea:** {idea}")
     st.markdown(f"**📖 Story:** {story}")
+
+    story_text = (
+        f"StorySpark — Generated Story\n{'=' * 40}\n"
+        f"Theme: {theme}\nAge: {age}\n\nIdea:\n{idea}\n\nStory:\n{story}\n"
+    )
+    st.download_button(
+        label="⬇️ Download Story (.txt)",
+        data=story_text,
+        file_name=f"story_{theme.replace(' ', '_')}.txt",
+        mime="text/plain",
+    )
+
+    # ---- Save to chat history ----
+    st.session_state.story_count += 1
+    st.session_state.chat_history.append({
+        "n": st.session_state.story_count,
+        "theme": theme,
+        "age": age,
+        "idea": idea,
+        "story": story,
+        "tokens": tokens,
+        "retries": retries,
+        "time": elapsed,
+    })
+
+
+# ---------- Chat History Panel ----------
+if st.session_state.chat_history:
+    st.divider()
+    st.subheader(f"💬 Chat History ({len(st.session_state.chat_history)} stories)")
+
+    # Show newest first
+    for item in reversed(st.session_state.chat_history):
+        with st.chat_message("user"):
+            st.markdown(f"**Story #{item['n']}** — Theme: `{item['theme']}` · Age: `{item['age']}`")
+        with st.chat_message("assistant", avatar="📖"):
+            st.markdown(f"**💡 Idea:** {item['idea']}")
+            st.markdown(f"**📖 Story:** {item['story']}")
+            st.caption(
+                f"Tokens: {item['tokens']}/300 · "
+                f"Retries: {item['retries']}/1 · "
+                f"Time: {item['time']}s"
+            )
+
+    # Bottom action bar
+    act1, act2, act3 = st.columns([2, 1, 1])
+    with act2:
+        if st.button("🆕 Start New Chat", use_container_width=True):
+            st.session_state.chat_history = []
+            st.session_state.story_count = 0
+            st.rerun()
+    with act3:
+        # Export full chat
+        chat_text = "\n\n".join([
+            f"Story #{i['n']}\nTheme: {i['theme']} (age {i['age']})\n"
+            f"Idea: {i['idea']}\nStory: {i['story']}\n"
+            f"{'-' * 40}"
+            for i in st.session_state.chat_history
+        ])
+        st.download_button(
+            label="⬇️ Export All",
+            data=chat_text,
+            file_name="storyspark_history.txt",
+            mime="text/plain",
+            use_container_width=True,
+        )
