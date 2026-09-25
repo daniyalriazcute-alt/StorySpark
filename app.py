@@ -1,4 +1,4 @@
-"""StorySpark — Streamlit UI with chat history, theme toggle, and live agent view."""
+"""StorySpark — Streamlit UI with full dark/light mode, chat history, and live agents."""
 import os
 import time
 import streamlit as st
@@ -12,36 +12,117 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ---------- Theme Toggle (top right) ----------
-theme_col1, theme_col2 = st.columns([5, 1])
-with theme_col2:
-    dark_mode = st.toggle("🌙 Dark Mode", value=False)
+# ---------- Session State for Theme ----------
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = False
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "story_count" not in st.session_state:
+    st.session_state.story_count = 0
 
-# ---------- Scoped CSS (only affects custom cards) ----------
-# We only style our own HTML classes (.agent-card, .log, .mem-box).
-# We do NOT override Streamlit's native text colors — Streamlit handles that
-# automatically via its built-in theme system.
-
-if dark_mode:
-    card_bg = "#1a1d24"
-    card_border = "#2a2f3a"
-    log_color = "#d1d5db"
-    mem_bg = "#1e2130"
-    title_color = "#fafafa"
-    subtext = "#9ca3af"
+# ---------- Full-Page Theme CSS ----------
+if st.session_state.dark_mode:
+    # DARK THEME — deep navy bg + royal blue accents + light text
+    BG = "#0a0e27"
+    CARD_BG = "#111633"
+    CARD_BORDER = "#1e3a8a"
+    TEXT = "#e5e7eb"
+    SUBTEXT = "#93c5fd"
+    ACCENT = "#1e3a8a"
+    MEM_BG = "#0f172a"
+    INPUT_BG = "#1a1f3d"
+    INPUT_BORDER = "#1e3a8a"
 else:
-    card_bg = "#fafafa"
-    card_border = "#e0e0e0"
-    log_color = "#374151"
-    mem_bg = "#eef2ff"
-    title_color = "#111827"
-    subtext = "#6b7280"
+    # LIGHT THEME — white bg + light blue accents + dark text
+    BG = "#ffffff"
+    CARD_BG = "#f8fafc"
+    CARD_BORDER = "#cbd5e1"
+    TEXT = "#111827"
+    SUBTEXT = "#1e40af"
+    ACCENT = "#3b82f6"
+    MEM_BG = "#eff6ff"
+    INPUT_BG = "#ffffff"
+    INPUT_BORDER = "#cbd5e1"
 
 st.markdown(f"""
 <style>
+/* ===== GLOBAL PAGE BACKGROUND ===== */
+.stApp {{
+    background-color: {BG} !important;
+}}
+
+/* ===== ALL TEXT COLORS ===== */
+.stApp, .stApp p, .stApp span, .stApp div, .stApp label,
+.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+.stApp strong, .stApp em, .stApp small, .stApp li,
+.stApp .stMarkdown, .stApp .stCaption, .stApp .stText {{
+    color: {TEXT} !important;
+}}
+
+/* ===== INPUT FIELDS ===== */
+.stApp input[type="text"],
+.stApp textarea,
+.stApp .stTextInput > div > div > input {{
+    background-color: {INPUT_BG} !important;
+    color: {TEXT} !important;
+    border: 1px solid {INPUT_BORDER} !important;
+    border-radius: 6px !important;
+}}
+
+/* ===== SLIDER ===== */
+.stApp .stSlider > div > div > div > div {{
+    background-color: {ACCENT} !important;
+}}
+.stApp .stSlider label {{
+    color: {TEXT} !important;
+}}
+
+/* ===== BUTTONS ===== */
+.stApp .stButton > button {{
+    background-color: {ACCENT} !important;
+    color: #ffffff !important;
+    border: 1px solid {ACCENT} !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+}}
+.stApp .stButton > button:hover {{
+    background-color: {CARD_BORDER} !important;
+    border-color: {CARD_BORDER} !important;
+}}
+
+/* ===== DOWNLOAD BUTTON ===== */
+.stApp .stDownloadButton > button {{
+    background-color: {ACCENT} !important;
+    color: #ffffff !important;
+    border: 1px solid {ACCENT} !important;
+}}
+
+/* ===== INFO / SUCCESS / ERROR / WARNING BOXES ===== */
+.stApp .stAlert {{
+    background-color: {CARD_BG} !important;
+    color: {TEXT} !important;
+    border: 1px solid {CARD_BORDER} !important;
+}}
+.stApp .stAlert p, .stApp .stAlert span {{
+    color: {TEXT} !important;
+}}
+
+/* ===== CHAT MESSAGES ===== */
+.stApp [data-testid="stChatMessage"] {{
+    background-color: {CARD_BG} !important;
+    border: 1px solid {CARD_BORDER} !important;
+    border-radius: 8px !important;
+}}
+
+/* ===== DIVIDER ===== */
+.stApp hr {{
+    border-color: {CARD_BORDER} !important;
+}}
+
+/* ===== CUSTOM AGENT CARDS ===== */
 .agent-card {{
-    background: {card_bg};
-    border: 1px solid {card_border};
+    background: {CARD_BG};
+    border: 1px solid {CARD_BORDER};
     border-radius: 10px;
     padding: 14px;
     min-height: 300px;
@@ -50,7 +131,10 @@ st.markdown(f"""
     font-weight: 600;
     font-size: 15px;
     margin-bottom: 6px;
-    color: {title_color};
+    color: {TEXT};
+}}
+.agent-role {{
+    color: {SUBTEXT};
 }}
 .status-dot {{
     display: inline-block;
@@ -67,30 +151,37 @@ st.markdown(f"""
     font-family: 'SF Mono', Monaco, monospace;
     font-size: 12.5px;
     line-height: 1.6;
-    color: {log_color};
+    color: {TEXT};
 }}
 .mem-box {{
-    background: {mem_bg};
-    border-left: 4px solid #6366f1;
+    background: {MEM_BG};
+    border-left: 4px solid {ACCENT};
     padding: 10px 14px;
     border-radius: 6px;
     font-size: 13px;
-    color: {log_color};
+    color: {TEXT};
 }}
-.agent-role {{ color: {subtext}; }}
-.agent-output-label {{ font-size:12px; color:{subtext}; }}
+.agent-output-label {{
+    font-size: 12px;
+    color: {SUBTEXT};
+}}
+
+/* ===== HIDE STREAMLIT DEFAULT HEADER FOOTER ===== */
+#MainMenu {{ visibility: hidden; }}
+footer {{ visibility: hidden; }}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- Session State Init ----------
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "story_count" not in st.session_state:
-    st.session_state.story_count = 0
-
-# ---------- Header ----------
-st.markdown("## 📖 StorySpark · Multi-Agent Story Engine")
-st.caption("Two CrewAI agents collaborate to write a children's story.")
+# ---------- Header with Theme Toggle ----------
+header_left, header_right = st.columns([5, 1])
+with header_left:
+    st.markdown("## 📖 StorySpark · Multi-Agent Story Engine")
+    st.caption("Two CrewAI agents collaborate to write a children's story.")
+with header_right:
+    toggle_label = "☀️ Light" if st.session_state.dark_mode else "🌙 Dark"
+    if st.button(toggle_label, use_container_width=True, key="theme_toggle"):
+        st.session_state.dark_mode = not st.session_state.dark_mode
+        st.rerun()
 
 # ---------- Top Controls ----------
 ctrl1, ctrl2 = st.columns([5, 1])
