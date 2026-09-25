@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ---------- Session State for Theme ----------
+# ---------- Session State ----------
 if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = False
 if "chat_history" not in st.session_state:
@@ -20,90 +20,120 @@ if "chat_history" not in st.session_state:
 if "story_count" not in st.session_state:
     st.session_state.story_count = 0
 
-# ---------- Full-Page Theme CSS ----------
+# ---------- Theme Colors ----------
 if st.session_state.dark_mode:
-    # DARK THEME — deep navy bg + royal blue accents + light text
-    BG = "#0a0e27"
-    CARD_BG = "#111633"
-    CARD_BORDER = "#1e3a8a"
-    TEXT = "#e5e7eb"
-    SUBTEXT = "#93c5fd"
-    ACCENT = "#1e3a8a"
+    BG = "#0a0e27"           # deep navy background
+    CARD_BG = "#111633"      # dark navy card
+    CARD_BORDER = "#1e3a8a"  # royal blue border
+    TEXT = "#e5e7eb"         # light gray text
+    SUBTEXT = "#93c5fd"      # light blue subtext
+    ACCENT = "#1e3a8a"       # royal blue accent
+    ACCENT_HOVER = "#2563eb"
     MEM_BG = "#0f172a"
     INPUT_BG = "#1a1f3d"
     INPUT_BORDER = "#1e3a8a"
+    BTN_TEXT = "#ffffff"     # white text on blue buttons
 else:
-    # LIGHT THEME — white bg + light blue accents + dark text
     BG = "#ffffff"
     CARD_BG = "#f8fafc"
     CARD_BORDER = "#cbd5e1"
     TEXT = "#111827"
     SUBTEXT = "#1e40af"
     ACCENT = "#3b82f6"
+    ACCENT_HOVER = "#2563eb"
     MEM_BG = "#eff6ff"
     INPUT_BG = "#ffffff"
     INPUT_BORDER = "#cbd5e1"
+    BTN_TEXT = "#ffffff"
 
+# ---------- Full-Page Theme CSS ----------
 st.markdown(f"""
 <style>
-/* ===== GLOBAL PAGE BACKGROUND ===== */
-.stApp {{
+/* ===== GLOBAL BACKGROUND ===== */
+.stApp, [data-testid="stAppViewContainer"] {{
+    background-color: {BG} !important;
+}}
+[data-testid="stHeader"] {{
     background-color: {BG} !important;
 }}
 
-/* ===== ALL TEXT COLORS ===== */
-.stApp, .stApp p, .stApp span, .stApp div, .stApp label,
+/* ===== ALL TEXT (except buttons) ===== */
+.stApp p, .stApp span, .stApp div, .stApp label,
 .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
 .stApp strong, .stApp em, .stApp small, .stApp li,
 .stApp .stMarkdown, .stApp .stCaption, .stApp .stText {{
     color: {TEXT} !important;
 }}
 
-/* ===== INPUT FIELDS ===== */
+/* ===== CAPTION ===== */
+.stApp .stCaption, .stApp [data-testid="stCaptionContainer"] {{
+    color: {SUBTEXT} !important;
+}}
+
+/* ===== SLIDER (label + value + track) ===== */
+.stApp .stSlider label,
+.stApp .stSlider [data-testid="stTickBarMin"],
+.stApp .stSlider [data-testid="stTickBarMax"],
+.stApp .stSlider [data-baseweb="slider"] div {{
+    color: {TEXT} !important;
+}}
+.stApp .stSlider [data-baseweb="slider"] > div > div > div {{
+    background: {ACCENT} !important;
+}}
+/* Slider thumb */
+.stApp .stSlider [role="slider"] {{
+    background-color: {ACCENT} !important;
+    border-color: {ACCENT} !important;
+}}
+/* Slider value bubble above thumb */
+.stApp .stSlider [data-testid="stThumbValue"] {{
+    color: {TEXT} !important;
+    background-color: transparent !important;
+}}
+
+/* ===== TEXT INPUT ===== */
 .stApp input[type="text"],
-.stApp textarea,
 .stApp .stTextInput > div > div > input {{
     background-color: {INPUT_BG} !important;
     color: {TEXT} !important;
     border: 1px solid {INPUT_BORDER} !important;
     border-radius: 6px !important;
 }}
-
-/* ===== SLIDER ===== */
-.stApp .stSlider > div > div > div > div {{
-    background-color: {ACCENT} !important;
-}}
-.stApp .stSlider label {{
+.stApp .stTextInput label {{
     color: {TEXT} !important;
 }}
 
-/* ===== BUTTONS ===== */
-.stApp .stButton > button {{
+/* ===== BUTTONS — ALL of them ===== */
+.stApp .stButton > button,
+.stApp .stDownloadButton > button {{
     background-color: {ACCENT} !important;
-    color: #ffffff !important;
     border: 1px solid {ACCENT} !important;
     border-radius: 6px !important;
     font-weight: 500 !important;
 }}
-.stApp .stButton > button:hover {{
-    background-color: {CARD_BORDER} !important;
-    border-color: {CARD_BORDER} !important;
+.stApp .stButton > button *,
+.stApp .stButton > button p,
+.stApp .stButton > button span,
+.stApp .stButton > button div,
+.stApp .stDownloadButton > button *,
+.stApp .stDownloadButton > button p,
+.stApp .stDownloadButton > button span,
+.stApp .stDownloadButton > button div {{
+    color: {BTN_TEXT} !important;
+}}
+.stApp .stButton > button:hover,
+.stApp .stDownloadButton > button:hover {{
+    background-color: {ACCENT_HOVER} !important;
+    border-color: {ACCENT_HOVER} !important;
 }}
 
-/* ===== DOWNLOAD BUTTON ===== */
-.stApp .stDownloadButton > button {{
-    background-color: {ACCENT} !important;
-    color: #ffffff !important;
-    border: 1px solid {ACCENT} !important;
-}}
-
-/* ===== INFO / SUCCESS / ERROR / WARNING BOXES ===== */
+/* ===== ALERT BOXES (info, success, error, warning) ===== */
 .stApp .stAlert {{
     background-color: {CARD_BG} !important;
     color: {TEXT} !important;
     border: 1px solid {CARD_BORDER} !important;
 }}
-.stApp .stAlert p, .stApp .stAlert span {{
+.stApp .stAlert * {{
     color: {TEXT} !important;
 }}
 
@@ -112,6 +142,9 @@ st.markdown(f"""
     background-color: {CARD_BG} !important;
     border: 1px solid {CARD_BORDER} !important;
     border-radius: 8px !important;
+}}
+.stApp [data-testid="stChatMessage"] * {{
+    color: {TEXT} !important;
 }}
 
 /* ===== DIVIDER ===== */
@@ -166,7 +199,7 @@ st.markdown(f"""
     color: {SUBTEXT};
 }}
 
-/* ===== HIDE STREAMLIT DEFAULT HEADER FOOTER ===== */
+/* ===== HIDE STREAMLIT MENU/FOOTER ===== */
 #MainMenu {{ visibility: hidden; }}
 footer {{ visibility: hidden; }}
 </style>
@@ -178,7 +211,11 @@ with header_left:
     st.markdown("## 📖 StorySpark · Multi-Agent Story Engine")
     st.caption("Two CrewAI agents collaborate to write a children's story.")
 with header_right:
-    toggle_label = "☀️ Light" if st.session_state.dark_mode else "🌙 Dark"
+    # Show CURRENT mode, not target
+    if st.session_state.dark_mode:
+        toggle_label = "🌙 Dark Mode"
+    else:
+        toggle_label = "☀️ Light Mode"
     if st.button(toggle_label, use_container_width=True, key="theme_toggle"):
         st.session_state.dark_mode = not st.session_state.dark_mode
         st.rerun()
