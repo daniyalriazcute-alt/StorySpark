@@ -23,7 +23,7 @@ StorySpark is a **two-agent AI system** that collaborates to write short, warm c
 
 - 🧠 **Agent 1 (IdeaGenerator)** — finds one creative story idea.
 - ✍️ **Agent 2 (StoryWriter)** — turns that idea into an 80-word tale.
-- 🔄 Agent Handoff — Agent 1's output is stored in memory,
+- 🔄 Agent Handoff — Agent 1's output is stored in memory
    then passed to Agent 2 as its input.
 ---
 
