@@ -1,0 +1,5 @@
+crewai>=0.150.0
+crewai-tools>=0.30.0
+streamlit>=1.51.0
+wikipedia-api>=0.8.1
+python-dotenv>=1.1.0
